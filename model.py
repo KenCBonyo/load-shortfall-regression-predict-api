@@ -58,62 +58,94 @@ def _preprocess_data(data):
     # ---------------------------------------------------------------
     # Extracting year from time column 
     #Replace the null values in Valencia_pressure with Madrid_pressure values on the same row.
-    train_copy_df = feature_vector_df.drop(['Unnamed: 0'], axis=1)
-        
+    train_df= feature_vector_df
+    train_df = train_df.drop(['Unnamed: 0'], axis=1)
+    #create a copy
+    train_copy_df = train_df.copy(deep = True)
+    #Replace the null values in Valencia_pressure with Madrid_pressure values on the same row.
     train_copy_df.loc[train_copy_df['Valencia_pressure'].isna(),'Valencia_pressure'] = \
-         train_copy_df.loc[train_copy_df['Valencia_pressure'].isna(), 'Madrid_pressure']
-         
+     train_copy_df.loc[train_copy_df['Valencia_pressure'].isna(), 'Madrid_pressure']
+    # Extracting year from time column
     train_copy_df['time'] = pd.to_datetime(train_copy_df.time)
     train_copy_df['year'] = train_copy_df[['time']].applymap(lambda dt:dt.year
-     if not pd.isnull(dt.year) else 0)
+        if not pd.isnull(dt.year) else 0)
     train_copy_df['month'] = train_copy_df[['time']].applymap(lambda dt:dt.month
-     if not pd.isnull(dt.month) else 0)
-    train_copy_df['Day'] = train_copy_df[['time']].applymap(lambda dt:dt.day
-     if not pd.isnull(dt.day_name()) else 0)
+        if not pd.isnull(dt.month) else 0)
     train_copy_df['Hours'] = train_copy_df[['time']].applymap(lambda dt:dt.hour
-     if not pd.isnull(dt.day_name()) else 0)
-    
+        if not pd.isnull(dt.day_name()) else 0)
+
+    #Let us Create new season features
     train_copy_df.loc[train_copy_df['month'].isin([1,2,3]),['winter','spring','summer','autumn']] = [1,0,0,0]
     train_copy_df.loc[train_copy_df['month'].isin([4,5,6]),['winter','spring','summer','autumn']] = [0,1,0,0]
     train_copy_df.loc[train_copy_df['month'].isin([7,8,9]),['winter','spring','summer','autumn']] = [0,0,1,0]
     train_copy_df.loc[train_copy_df['month'].isin([10,11,12]),['winter','spring','summer','autumn']] = [0,0,0,1]
-    train_copy_df = train_copy_df.astype(
-    
-       {
-        'winter': int, 'summer': int, 'spring': int, 'autumn': int
-       }
-    )
-    
-    
-    dummies_df = pd.get_dummies(train_copy_df[['Valencia_wind_deg','Seville_pressure']], drop_first = True)
-    train_copy_df = pd.concat([train_copy_df, dummies_df], axis='columns')
-    train_copy_df = train_copy_df.drop(['Valencia_wind_deg', 'Seville_pressure' ], axis='columns')
-    
-    column_titles = [col for col in train_copy_df.columns if col!= 'load_shortfall_3h']
-    train_copy_df = train_copy_df.reindex(columns = column_titles)
-    
-    train_copy_df=pd.DataFrame(train_copy_df)
 
-    # ----------- Replace this code with your own preprocessing steps --------
-    predict_vector =train_copy_df[['Madrid_wind_speed', 'Bilbao_rain_1h', 'Valencia_wind_speed',
-    'Seville_humidity','Madrid_humidity', 'Bilbao_clouds_all',
-    'Bilbao_wind_speed', 'Seville_clouds_all', 'Bilbao_wind_deg',
-    'Barcelona_wind_speed', 'Barcelona_wind_deg' ,'Madrid_clouds_all',
-    'Seville_wind_speed', 'Barcelona_rain_1h', 'Seville_rain_1h',
-    'Bilbao_snow_3h', 'Barcelona_pressure', 'Seville_rain_3h', 'Madrid_rain_1h',
-    'Madrid_weather_id', 'Barcelona_weather_id', 'Bilbao_pressure',
-    'Seville_weather_id', 'Valencia_pressure', 'Seville_temp_max',
-    'Madrid_pressure', 'Valencia_temp_max', 'Valencia_temp', 'Bilbao_weather_id',
-    'Seville_temp', 'Valencia_humidity', 'Valencia_temp_min',
-    'Barcelona_temp_max', 'Madrid_temp_max' ,'Barcelona_temp', 'Bilbao_temp_min',
-    'Bilbao_temp', 'Barcelona_temp_min','Bilbao_temp_max', 'Seville_temp_min',
-    'Madrid_temp' ,'Madrid_temp_min', 'year' ,'month', 'Hours', 'winter' ,'spring',
-    'summer', 'autumn', 'Valencia_wind_deg_level_10',
-    'Valencia_wind_deg_level_2', 'Valencia_wind_deg_level_3',
-    'Valencia_wind_deg_level_4', 'Valencia_wind_deg_level_5',
-    'Valencia_wind_deg_level_8', 'Valencia_wind_deg_level_9',
-    'Seville_pressure_sp12', 'Seville_pressure_sp24', 'Seville_pressure_sp25',
-    'Seville_pressure_sp4']]
+    train_copy_df = train_copy_df.astype(
+        {
+        'winter': int, 'summer': int, 'spring': int, 'autumn': int
+        }
+    )
+
+    def remover (df):
+        if "_" in df:
+            return float(df. split("_")[1].strip())
+        else:
+            return float(df. split("p")[1].strip());
+    train_copy_df["Valencia_wind_deg"]=train_copy_df["Valencia_wind_deg"].apply(remover)
+    train_copy_df["Seville_pressure"]= train_copy_df["Seville_pressure"].apply(remover)
+    train_copy_df = train_copy_df.drop(['time'], axis='columns')
+    train_copy_df = train_copy_df.fillna(0)
+
+    predict_vector = train_copy_df[['Madrid_wind_speed',
+     'Valencia_wind_deg',
+     'Bilbao_rain_1h',
+     'Valencia_wind_speed',
+     'Seville_humidity',
+     'Madrid_humidity',
+     'Bilbao_clouds_all',
+     'Bilbao_wind_speed',
+     'Seville_clouds_all',
+     'Bilbao_wind_deg',
+     'Barcelona_wind_speed',
+     'Barcelona_wind_deg',
+     'Madrid_clouds_all',
+     'Seville_wind_speed',
+     'Barcelona_rain_1h',
+     'Seville_pressure',
+     'Bilbao_snow_3h',
+     'Barcelona_pressure',
+     'Seville_rain_3h',
+     'Madrid_rain_1h',
+     'Madrid_weather_id',
+     'Barcelona_weather_id',
+     'Bilbao_pressure',
+     'Seville_weather_id',
+     'Valencia_pressure',
+     'Seville_temp_max',
+     'Madrid_pressure',
+     'Valencia_temp_max',
+     'Valencia_temp',
+     'Bilbao_weather_id',
+     'Seville_temp',
+     'Valencia_humidity',
+     'Valencia_temp_min',
+     'Barcelona_temp_max',
+     'Madrid_temp_max',
+     'Barcelona_temp',
+     'Bilbao_temp_min',
+     'Bilbao_temp',
+     'Barcelona_temp_min',
+     'Bilbao_temp_max',
+     'Seville_temp_min',
+     'Madrid_temp',
+     'Madrid_temp_min',
+     'year',
+     'month',
+     'Hours',
+     'winter',
+     'spring',
+     'summer',
+     'autumn']]
     # ------------------------------------------------------------------------
 
     return predict_vector
@@ -162,4 +194,4 @@ def make_prediction(data, model):
     # Perform prediction with model and preprocessed data.
     prediction = model.predict(prep_data)
     # Format as list for output standardisation.
-    return prediction[0].tolist()
+    return prediction.tolist()
